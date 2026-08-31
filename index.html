@@ -1,0 +1,55 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Agenda Timer</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Barlow:wght@400;600;700&family=Space+Grotesk:wght@500;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <main class="container">
+    <header>
+      <h1>Agenda Timer</h1>
+      <p class="subtitle">Paste agenda JSON, start the clock, and stay on topic.</p>
+    </header>
+
+    <section class="panel input-panel">
+      <label for="agendaInput">Agenda JSON</label>
+      <textarea id="agendaInput" spellcheck="false"></textarea>
+      <div class="actions">
+        <button id="loadAgendaBtn" type="button">Load Agenda</button>
+        <button id="startBtn" type="button" disabled>Start</button>
+        <button id="pauseBtn" type="button" disabled>Pause</button>
+        <button id="resumeBtn" type="button" disabled>Resume</button>
+        <button id="resetBtn" type="button" disabled>Reset</button>
+      </div>
+      <p id="inputMessage" class="message"></p>
+    </section>
+
+    <section class="panel timer-panel" id="timerPanel">
+      <div class="status-row">
+        <span id="phaseBadge" class="badge idle">Idle</span>
+        <span id="progressText">0%</span>
+      </div>
+      <div class="progress" aria-label="Section progress" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0">
+        <div id="progressFill" class="progress-fill"></div>
+      </div>
+      <h2 id="currentTopic">No agenda loaded</h2>
+      <p id="currentPath">Load an agenda to begin.</p>
+      <p id="timeRemaining" class="time">00:00</p>
+      <p id="nextUp" class="next-up"></p>
+    </section>
+
+    <section class="panel help-panel">
+      <h3>JSON Format</h3>
+      <pre id="jsonHelp"></pre>
+      <p class="note">Duration fields are in minutes.</p>
+    </section>
+  </main>
+
+  <script src="app.js"></script>
+</body>
+</html>
