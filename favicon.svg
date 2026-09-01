@@ -1,0 +1,19 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-label="Agenda Timer icon">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#2fd0ff" />
+      <stop offset="100%" stop-color="#5685ff" />
+    </linearGradient>
+    <linearGradient id="dial" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#30df84" />
+      <stop offset="100%" stop-color="#ffd24a" />
+    </linearGradient>
+  </defs>
+
+  <rect x="2" y="2" width="60" height="60" rx="14" fill="url(#bg)" />
+  <circle cx="32" cy="34" r="16" fill="#0b1d35" stroke="#d7ecff" stroke-width="2" />
+  <path d="M32 34 L32 23" stroke="url(#dial)" stroke-width="3" stroke-linecap="round" />
+  <path d="M32 34 L42 34" stroke="#ff5e5e" stroke-width="3" stroke-linecap="round" />
+  <circle cx="32" cy="34" r="2.6" fill="#ffffff" />
+  <rect x="26" y="9" width="12" height="5" rx="2.5" fill="#d7ecff" />
+</svg>

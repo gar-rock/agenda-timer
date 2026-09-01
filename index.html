@@ -4,12 +4,16 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Agenda Timer</title>
+  <link rel="icon" type="image/svg+xml" href="favicon.svg">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Barlow:wght@400;600;700&family=Space+Grotesk:wght@500;700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="styles.css">
 </head>
 <body>
+  <div class="bg-orb orb-a" aria-hidden="true"></div>
+  <div class="bg-orb orb-b" aria-hidden="true"></div>
+  <div class="bg-grid" aria-hidden="true"></div>
   <main class="container">
     <header>
       <h1>Agenda Timer</h1>
@@ -24,23 +28,27 @@
         <button id="startBtn" type="button" disabled>Start</button>
         <button id="pauseBtn" type="button" disabled>Pause</button>
         <button id="resumeBtn" type="button" disabled>Resume</button>
+        <button id="openFocusBtn" class="ghost-btn" type="button" disabled>Open Focus View</button>
         <button id="resetBtn" type="button" disabled>Reset</button>
       </div>
-      <p id="inputMessage" class="message"></p>
-    </section>
 
-    <section class="panel timer-panel" id="timerPanel">
-      <div class="status-row">
-        <span id="phaseBadge" class="badge idle">Idle</span>
-        <span id="progressText">0%</span>
+      <div class="phase-settings">
+        <p class="meta-label">Color Transition Settings</p>
+        <div class="phase-settings-grid">
+          <div class="field-group">
+            <label for="greenUntilInput">Green Until (%)</label>
+            <input id="greenUntilInput" type="number" min="1" max="98" step="1" value="75">
+          </div>
+          <div class="field-group">
+            <label for="yellowUntilInput">Yellow Until (%)</label>
+            <input id="yellowUntilInput" type="number" min="2" max="99" step="1" value="95">
+          </div>
+          <button id="applyPhaseSettingsBtn" class="ghost-btn" type="button">Apply Color Thresholds</button>
+        </div>
+        <p class="focus-hint">Red starts after the yellow threshold and runs to 100%.</p>
       </div>
-      <div class="progress" aria-label="Section progress" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0">
-        <div id="progressFill" class="progress-fill"></div>
-      </div>
-      <h2 id="currentTopic">No agenda loaded</h2>
-      <p id="currentPath">Load an agenda to begin.</p>
-      <p id="timeRemaining" class="time">00:00</p>
-      <p id="nextUp" class="next-up"></p>
+
+      <p id="inputMessage" class="message"></p>
     </section>
 
     <section class="panel help-panel">
@@ -48,7 +56,76 @@
       <pre id="jsonHelp"></pre>
       <p class="note">Duration fields are in minutes.</p>
     </section>
+
+    <section id="agendaEditor" class="panel agenda-editor hidden" aria-live="polite">
+      <div class="editor-head">
+        <h3>Visual Agenda Editor</h3>
+        <div class="editor-actions">
+          <button id="addTopicBtn" class="ghost-btn" type="button">Add Topic</button>
+          <button id="applyCardEditsBtn" type="button">Apply Card Edits To JSON</button>
+        </div>
+      </div>
+      <p class="timeline-subtitle">Edit topics and subtopics here, then apply changes to update your JSON and timer plan.</p>
+      <div id="agendaCards" class="agenda-cards"></div>
+    </section>
   </main>
+
+  <section id="focusModal" class="focus-modal" aria-hidden="true">
+    <div class="focus-shell">
+      <div class="focus-header">
+        <p class="focus-kicker">Focus Mode</p>
+        <button id="closeFocusBtn" class="ghost-btn" type="button">Exit Focus View</button>
+      </div>
+
+      <div class="focus-grid">
+        <section class="panel timer-panel" id="timerPanel">
+          <div class="status-row">
+            <span id="phaseBadge" class="badge idle">Idle</span>
+            <span id="progressText">0%</span>
+          </div>
+          <div id="progressTrack" class="progress" aria-label="Section progress" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0">
+            <div id="progressFill" class="progress-fill"></div>
+          </div>
+          <p class="focus-hint">Tip: Click or drag this progress bar to scrub the current section to any percentage.</p>
+          <p class="meta-label">Current Section</p>
+          <h2 id="currentTopic">No agenda loaded</h2>
+          <p id="currentPath">Load an agenda to begin.</p>
+          <p id="timeRemaining" class="time">00:00</p>
+          <p class="meta-label next-label">Up Next</p>
+          <p id="nextUp" class="next-up"></p>
+
+          <div class="focus-controls">
+            <button id="focusStartBtn" type="button">Start</button>
+            <button id="focusStopBtn" class="ghost-btn" type="button">Stop</button>
+            <button id="focusResumeBtn" class="ghost-btn" type="button">Resume</button>
+          </div>
+        </section>
+
+        <section class="panel timeline-panel">
+          <h3>Agenda Flow</h3>
+          <p class="timeline-subtitle">Passed sections are gray. Upcoming sections stay clear.</p>
+          <p class="timeline-subtitle">Tip: Click any section to restart from that point and continue normally.</p>
+          <ol id="segmentList" class="segment-list" aria-live="polite"></ol>
+        </section>
+      </div>
+    </div>
+  </section>
+
+  <aside id="cornerTimer" class="corner-timer" aria-live="polite" aria-hidden="true">
+    <p class="corner-label">Live Timer</p>
+    <p id="cornerTime" class="corner-time">00:00</p>
+    <p id="cornerTopic" class="corner-topic">No section active</p>
+    <button id="cornerOpenFocusBtn" class="mini-focus-btn" type="button">Open Focus View</button>
+  </aside>
+
+  <footer class="site-footer">
+    <p>
+      This app runs 100% in your browser. Made with PostMeld.
+      <a href="https://postmeld.com" target="_blank" rel="noopener noreferrer">Visit postmeld.com</a>
+      |
+      <a href="https://buymeacoffee.com/garrisonlerock" target="_blank" rel="noopener noreferrer">Buy me a coffee</a>
+    </p>
+  </footer>
 
   <script src="app.js"></script>
 </body>
