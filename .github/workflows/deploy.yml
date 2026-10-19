@@ -1,0 +1,97 @@
+name: Deploy to AWS
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+# Prevent overlapping deployments from racing on shared infrastructure.
+concurrency:
+  group: aws-deploy
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Load deploy settings from terraform.tfvars
+        run: |
+          TFVARS="mock-static-website/terraform/terraform.tfvars"
+
+          SUBDOMAIN=$(awk -F '"' '/^subdomain[[:space:]]*=/{print $2}' "$TFVARS")
+          ROOT_DOMAIN=$(awk -F '"' '/^root_domain[[:space:]]*=/{print $2}' "$TFVARS")
+          AWS_REGION=$(awk -F '"' '/^aws_region[[:space:]]*=/{print $2}' "$TFVARS")
+
+          if [[ -z "$SUBDOMAIN" || -z "$ROOT_DOMAIN" || -z "$AWS_REGION" ]]; then
+            echo "Failed to read subdomain, root_domain, or aws_region from $TFVARS"
+            exit 1
+          fi
+
+          echo "SUBDOMAIN=$SUBDOMAIN" >> "$GITHUB_ENV"
+          echo "ROOT_DOMAIN=$ROOT_DOMAIN" >> "$GITHUB_ENV"
+          echo "AWS_REGION=$AWS_REGION" >> "$GITHUB_ENV"
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install build dependencies
+        working-directory: mock-static-website
+        run: pip install -r requirements.txt
+
+      - name: Build static site
+        working-directory: mock-static-website
+        run: python build.py --subdomain "$SUBDOMAIN" --root-domain "$ROOT_DOMAIN"
+
+      - name: Set up Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: "1.9.5"
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Verify AWS identity
+        run: aws sts get-caller-identity
+
+      - name: Terraform Init
+        working-directory: mock-static-website/terraform
+        run: |
+          terraform init -input=false \
+            -backend-config="bucket=${{ vars.TF_STATE_BUCKET }}" \
+            -backend-config="key=mock-static-website/${ROOT_DOMAIN}/${SUBDOMAIN}.tfstate" \
+            -backend-config="region=${AWS_REGION}"
+
+      - name: Import existing S3 bucket if not in state
+        working-directory: mock-static-website/terraform
+        run: |
+          BUCKET="mock-${SUBDOMAIN}-${ROOT_DOMAIN}"
+          if terraform state list | grep -qx 'aws_s3_bucket.site'; then
+            echo "aws_s3_bucket.site already in state; skipping import."
+          else
+            echo "Importing existing bucket $BUCKET into state."
+            terraform import -input=false aws_s3_bucket.site "$BUCKET"
+          fi
+
+      - name: Terraform Apply
+        working-directory: mock-static-website/terraform
+        run: terraform apply -auto-approve -input=false
+
+      - name: Invalidate CloudFront cache
+        working-directory: mock-static-website/terraform
+        run: |
+          DIST_ID=$(terraform output -raw cloudfront_distribution_id)
+          aws cloudfront create-invalidation \
+            --distribution-id "$DIST_ID" \
+            --paths "/*"

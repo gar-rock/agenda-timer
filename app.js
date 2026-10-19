@@ -53,46 +53,87 @@ const state = {
   segmentListSignature: "",
   focusMode: false,
   agendaEditorSignature: "",
-  phaseThresholds: { ...DEFAULT_PHASE_THRESHOLDS }
+  phaseThresholds: { ...DEFAULT_PHASE_THRESHOLDS },
+  view: "welcome"
 };
 
+const STEP_ORDER = ["build", "colors", "review"];
+
+const $ = (id) => document.getElementById(id);
+
 const el = {
-  agendaInput: document.getElementById("agendaInput"),
-  loadAgendaBtn: document.getElementById("loadAgendaBtn"),
-  startBtn: document.getElementById("startBtn"),
-  pauseBtn: document.getElementById("pauseBtn"),
-  resumeBtn: document.getElementById("resumeBtn"),
-  openFocusBtn: document.getElementById("openFocusBtn"),
-  resetBtn: document.getElementById("resetBtn"),
-  greenUntilInput: document.getElementById("greenUntilInput"),
-  yellowUntilInput: document.getElementById("yellowUntilInput"),
-  applyPhaseSettingsBtn: document.getElementById("applyPhaseSettingsBtn"),
-  focusModal: document.getElementById("focusModal"),
-  closeFocusBtn: document.getElementById("closeFocusBtn"),
-  inputMessage: document.getElementById("inputMessage"),
-  agendaEditor: document.getElementById("agendaEditor"),
-  agendaCards: document.getElementById("agendaCards"),
-  addTopicBtn: document.getElementById("addTopicBtn"),
-  applyCardEditsBtn: document.getElementById("applyCardEditsBtn"),
-  focusStartBtn: document.getElementById("focusStartBtn"),
-  focusStopBtn: document.getElementById("focusStopBtn"),
-  focusResumeBtn: document.getElementById("focusResumeBtn"),
-  progressTrack: document.getElementById("progressTrack"),
-  timerPanel: document.getElementById("timerPanel"),
-  phaseBadge: document.getElementById("phaseBadge"),
-  progressText: document.getElementById("progressText"),
-  progressFill: document.getElementById("progressFill"),
-  segmentList: document.getElementById("segmentList"),
-  currentTopic: document.getElementById("currentTopic"),
-  currentPath: document.getElementById("currentPath"),
-  timeRemaining: document.getElementById("timeRemaining"),
-  nextUp: document.getElementById("nextUp"),
-  jsonHelp: document.getElementById("jsonHelp"),
-  cornerTimer: document.getElementById("cornerTimer"),
-  cornerTime: document.getElementById("cornerTime"),
-  cornerTopic: document.getElementById("cornerTopic"),
-  cornerOpenFocusBtn: document.getElementById("cornerOpenFocusBtn")
+  stepper: $("stepper"),
+  views: {
+    welcome: $("welcomeView"),
+    build: $("buildView"),
+    colors: $("colorsView"),
+    review: $("reviewView")
+  },
+  letsBeginBtn: $("letsBeginBtn"),
+  sampleAgendaBtn: $("sampleAgendaBtn"),
+  sessionBanner: $("sessionBanner"),
+  sessionBannerText: $("sessionBannerText"),
+  bannerOpenTimerBtn: $("bannerOpenTimerBtn"),
+  bannerPauseBtn: $("bannerPauseBtn"),
+  bannerResumeBtn: $("bannerResumeBtn"),
+  bannerEndBtn: $("bannerEndBtn"),
+  agendaTitleInput: $("agendaTitleInput"),
+  tabVisualBtn: $("tabVisualBtn"),
+  tabJsonBtn: $("tabJsonBtn"),
+  visualPane: $("visualPane"),
+  jsonPane: $("jsonPane"),
+  agendaCards: $("agendaCards"),
+  addTopicBtn: $("addTopicBtn"),
+  agendaTotal: $("agendaTotal"),
+  agendaInput: $("agendaInput"),
+  importJsonBtn: $("importJsonBtn"),
+  jsonHelp: $("jsonHelp"),
+  buildBackBtn: $("buildBackBtn"),
+  buildNextBtn: $("buildNextBtn"),
+  greenUntilInput: $("greenUntilInput"),
+  yellowUntilInput: $("yellowUntilInput"),
+  colorPreviewGreen: $("colorPreviewGreen"),
+  colorPreviewYellow: $("colorPreviewYellow"),
+  colorPreviewRed: $("colorPreviewRed"),
+  colorSummary: $("colorSummary"),
+  colorsBackBtn: $("colorsBackBtn"),
+  colorsNextBtn: $("colorsNextBtn"),
+  reviewTitle: $("reviewTitle"),
+  reviewTotal: $("reviewTotal"),
+  reviewCount: $("reviewCount"),
+  reviewEnd: $("reviewEnd"),
+  reviewList: $("reviewList"),
+  reviewBackBtn: $("reviewBackBtn"),
+  reviewStartBtn: $("reviewStartBtn"),
+  toast: $("toast"),
+  focusModal: $("focusModal"),
+  focusTitle: $("focusTitle"),
+  closeFocusBtn: $("closeFocusBtn"),
+  focusStartBtn: $("focusStartBtn"),
+  focusPauseBtn: $("focusPauseBtn"),
+  focusResumeBtn: $("focusResumeBtn"),
+  focusRestartBtn: $("focusRestartBtn"),
+  focusEditBtn: $("focusEditBtn"),
+  focusEndBtn: $("focusEndBtn"),
+  progressTrack: $("progressTrack"),
+  timerPanel: $("timerPanel"),
+  phaseBadge: $("phaseBadge"),
+  progressText: $("progressText"),
+  progressFill: $("progressFill"),
+  segmentList: $("segmentList"),
+  currentTopic: $("currentTopic"),
+  currentPath: $("currentPath"),
+  timeRemaining: $("timeRemaining"),
+  nextUp: $("nextUp"),
+  cornerTimer: $("cornerTimer"),
+  cornerTime: $("cornerTime"),
+  cornerTopic: $("cornerTopic"),
+  cornerOpenFocusBtn: $("cornerOpenFocusBtn")
 };
+
+function toggleVisible(node, visible) {
+  node.classList.toggle("hidden", !visible);
+}
 
 function escapeHtml(text) {
   return String(text)
@@ -148,17 +189,35 @@ function loadPhaseThresholds() {
   syncPhaseInputs();
 }
 
-function applyPhaseThresholdSettings() {
+function renderColorPreview() {
+  const green = Number(el.greenUntilInput.value);
+  const yellow = Number(el.yellowUntilInput.value);
+  const valid = Number.isFinite(green) && Number.isFinite(yellow) && green > 0 && yellow < 100 && green < yellow;
+
+  el.colorSummary.classList.toggle("error-text", !valid);
+  if (!valid) {
+    el.colorSummary.textContent = "Yellow must start before red, and both must be between 1 and 99.";
+    return;
+  }
+
+  el.colorPreviewGreen.style.flex = `0 0 ${green}%`;
+  el.colorPreviewYellow.style.flex = `0 0 ${yellow - green}%`;
+  el.colorPreviewRed.style.flex = `0 0 ${100 - yellow}%`;
+
+  const exampleMs = 10 * 60000;
+  el.colorSummary.textContent =
+    `Example: in a 10 minute section, the timer turns yellow after ${formatDurationLabel(exampleMs * green / 100)} ` +
+    `and red after ${formatDurationLabel(exampleMs * yellow / 100)}.`;
+}
+
+function commitPhaseThresholds() {
   try {
-    const next = normalizePhaseThresholds(el.greenUntilInput.value, el.yellowUntilInput.value);
-    state.phaseThresholds = next;
+    state.phaseThresholds = normalizePhaseThresholds(el.greenUntilInput.value, el.yellowUntilInput.value);
     persistPhaseThresholds();
-    render();
-    setMessage(
-      `Color thresholds updated: green 0-${next.greenEndPct}%, yellow ${next.greenEndPct}-${next.yellowEndPct}%, red ${next.yellowEndPct}-100%.`
-    );
+    return true;
   } catch (error) {
     setMessage(error.message, true);
+    return false;
   }
 }
 
@@ -172,108 +231,158 @@ function blankSubtopic() {
 
 function ensureRawAgenda() {
   if (!state.rawAgenda || !Array.isArray(state.rawAgenda.items)) {
-    state.rawAgenda = { title: "Agenda Timer Session", items: [] };
+    state.rawAgenda = { title: "", items: [] };
   }
 }
 
 function renderAgendaEditor() {
   ensureRawAgenda();
 
-  if (!state.rawAgenda.items.length && !state.segments.length) {
-    el.agendaEditor.classList.add("hidden");
-    el.agendaCards.innerHTML = "";
-    state.agendaEditorSignature = "";
-    return;
-  }
-
-  el.agendaEditor.classList.remove("hidden");
   const signature = JSON.stringify(state.rawAgenda.items);
   if (signature === state.agendaEditorSignature) {
     return;
   }
 
+  if (!state.rawAgenda.items.length) {
+    el.agendaCards.innerHTML = `<div class="empty-state">
+      <p class="empty-title">No topics yet</p>
+      <p class="step-copy">Add your first topic, or load a sample agenda to see how it works.</p>
+      <div class="actions">
+        <button type="button" data-action="add-first-topic">+ Add first topic</button>
+        <button type="button" class="ghost-btn" data-action="use-sample">Use sample agenda</button>
+      </div>
+    </div>`;
+    state.agendaEditorSignature = signature;
+    updateAgendaTotals();
+    return;
+  }
+
   const cards = state.rawAgenda.items.map((item, topicIdx) => {
     const subtopics = Array.isArray(item.subtopics) ? item.subtopics : [];
+    const hasSubtopics = subtopics.length > 0;
     const subRows = subtopics.map((sub, subIdx) => {
       return `<div class="subtopic-row" data-subtopic-index="${subIdx}">
         <div class="field-group">
-          <label>Subtopic</label>
-          <input data-field="subtopic-topic" type="text" value="${escapeHtml(sub.topic || "")}">
+          <label>Subtopic name</label>
+          <input data-field="subtopic-topic" type="text" placeholder="e.g. Frontend update" value="${escapeHtml(sub.topic || "")}">
         </div>
         <div class="field-group">
           <label>Minutes</label>
-          <input data-field="subtopic-duration" type="number" min="0.1" step="0.1" value="${Number(sub.durationMinutes || 0)}">
+          <input data-field="subtopic-duration" type="number" min="0.1" step="0.5" value="${Number(sub.durationMinutes || 0)}">
         </div>
         <button class="tiny-btn danger-btn" data-action="remove-subtopic" type="button">Remove</button>
       </div>`;
     }).join("");
 
+    const topicMinutes = hasSubtopics
+      ? subtopics.reduce((acc, sub) => acc + (Number(sub.durationMinutes) || 0), 0)
+      : Number(item.durationMinutes || 0);
+
     return `<article class="agenda-card" data-topic-index="${topicIdx}">
       <div class="agenda-card-head">
         <p class="agenda-card-title">Topic ${topicIdx + 1}</p>
-        <button class="tiny-btn danger-btn" data-action="remove-topic" type="button">Remove Topic</button>
+        <button class="tiny-btn danger-btn" data-action="remove-topic" type="button">Remove topic</button>
       </div>
       <div class="field-grid">
         <div class="field-group">
-          <label>Topic Name</label>
-          <input data-field="topic-name" type="text" value="${escapeHtml(item.topic || "")}">
+          <label>Topic name</label>
+          <input data-field="topic-name" type="text" placeholder="e.g. Project updates" value="${escapeHtml(item.topic || "")}">
         </div>
         <div class="field-group">
-          <label>Minutes</label>
-          <input data-field="topic-duration" type="number" min="0.1" step="0.1" value="${Number(item.durationMinutes || 0)}">
+          <label>${hasSubtopics ? "Minutes (from subtopics)" : "Minutes"}</label>
+          <input data-field="topic-duration" type="number" min="0.1" step="0.5" value="${topicMinutes}"${hasSubtopics ? " readonly" : ""}>
         </div>
       </div>
       <div class="subtopic-wrap">
         <div class="agenda-card-head">
-          <p class="agenda-card-title">Subtopics</p>
-          <button class="tiny-btn" data-action="add-subtopic" type="button">Add Subtopic</button>
+          <p class="agenda-card-title">Subtopics (optional)</p>
+          <button class="tiny-btn" data-action="add-subtopic" type="button">+ Add subtopic</button>
         </div>
-        ${subRows || '<p class="timeline-subtitle">No subtopics. This topic will run as one timed section.</p>'}
+        ${subRows || '<p class="timeline-subtitle">No subtopics. This topic runs as one timed section.</p>'}
       </div>
     </article>`;
   }).join("");
 
   el.agendaCards.innerHTML = cards;
   state.agendaEditorSignature = signature;
+  updateAgendaTotals();
+}
+
+function updateAgendaTotals() {
+  let totalMinutes = 0;
+  el.agendaCards.querySelectorAll(".agenda-card").forEach((card) => {
+    const topicInput = card.querySelector('[data-field="topic-duration"]');
+    const subInputs = Array.from(card.querySelectorAll('[data-field="subtopic-duration"]'));
+    if (subInputs.length) {
+      const sum = subInputs.reduce((acc, input) => acc + (Number(input.value) || 0), 0);
+      topicInput.value = String(Math.round(sum * 100) / 100);
+      totalMinutes += sum;
+    } else {
+      totalMinutes += Number(topicInput.value) || 0;
+    }
+  });
+  el.agendaTotal.textContent = formatDurationLabel(totalMinutes * 60000);
 }
 
 function rebuildAgendaFromCards() {
   const topicCards = Array.from(el.agendaCards.querySelectorAll(".agenda-card"));
   if (!topicCards.length) {
-    throw new Error("Add at least one topic in the visual editor.");
+    throw new Error("Add at least one topic to continue.");
   }
 
-  const items = topicCards.map((card) => {
+  const items = topicCards.map((card, topicIdx) => {
     const topicName = card.querySelector('[data-field="topic-name"]').value.trim();
-    const topicDurationRaw = Number(card.querySelector('[data-field="topic-duration"]').value);
+    const topicDuration = Number(card.querySelector('[data-field="topic-duration"]').value);
     const subtopicRows = Array.from(card.querySelectorAll(".subtopic-row"));
+    const topicLabel = topicName ? `"${topicName}"` : `Topic ${topicIdx + 1}`;
 
-    const item = {
-      topic: topicName,
-      durationMinutes: topicDurationRaw
-    };
-
-    if (subtopicRows.length) {
-      item.subtopics = subtopicRows.map((row) => {
-        const subName = row.querySelector('[data-field="subtopic-topic"]').value.trim();
-        const subDurationRaw = Number(row.querySelector('[data-field="subtopic-duration"]').value);
-        return {
-          topic: subName,
-          durationMinutes: subDurationRaw
-        };
-      });
+    if (!topicName) {
+      throw new Error(`Topic ${topicIdx + 1} needs a name.`);
     }
 
-    return item;
+    if (!subtopicRows.length) {
+      if (!(topicDuration > 0)) {
+        throw new Error(`${topicLabel} needs a time greater than 0 minutes.`);
+      }
+      return { topic: topicName, durationMinutes: topicDuration };
+    }
+
+    const subtopics = subtopicRows.map((row, subIdx) => {
+      const subName = row.querySelector('[data-field="subtopic-topic"]').value.trim();
+      const subDuration = Number(row.querySelector('[data-field="subtopic-duration"]').value);
+      if (!subName) {
+        throw new Error(`Subtopic ${subIdx + 1} in ${topicLabel} needs a name.`);
+      }
+      if (!(subDuration > 0)) {
+        throw new Error(`"${subName}" in ${topicLabel} needs a time greater than 0 minutes.`);
+      }
+      return { topic: subName, durationMinutes: subDuration };
+    });
+
+    return {
+      topic: topicName,
+      durationMinutes: subtopics.reduce((acc, sub) => acc + sub.durationMinutes, 0),
+      subtopics
+    };
   });
 
   return {
-    title: (state.rawAgenda && state.rawAgenda.title) || "Agenda Timer Session",
+    title: el.agendaTitleInput.value.trim() || "Untitled meeting",
     items
   };
 }
 
-function applyVisualEdits(showMessage = true) {
+function resetRunState() {
+  state.index = 0;
+  state.sectionEndEpochMs = null;
+  state.running = false;
+  state.paused = false;
+  state.pausedRemainingMs = null;
+  state.finished = false;
+  state.segmentListSignature = "";
+}
+
+function commitAgendaFromCards() {
   try {
     const rebuilt = rebuildAgendaFromCards();
     const segments = buildSegments(rebuilt);
@@ -281,38 +390,47 @@ function applyVisualEdits(showMessage = true) {
     clearTimer();
     state.rawAgenda = rebuilt;
     state.segments = segments;
-    state.index = 0;
-    state.sectionEndEpochMs = null;
-    state.running = false;
-    state.paused = false;
-    state.pausedRemainingMs = null;
-    state.finished = false;
-    state.segmentListSignature = "";
+    resetRunState();
     state.agendaEditorSignature = "";
-    setFocusMode(false);
+    renderAgendaEditor();
 
     el.agendaInput.value = JSON.stringify(rebuilt, null, 2);
     persistAgendaText();
     persistRuntimeState();
     render();
-    renderAgendaEditor();
-
-    if (showMessage) {
-      setMessage(`Applied card edits. Agenda has ${segments.length} segment(s).`);
-    }
+    return true;
   } catch (error) {
     setMessage(error.message, true);
+    return false;
   }
 }
 
+function loadAgendaIntoEditor(agenda) {
+  state.rawAgenda = JSON.parse(JSON.stringify(agenda));
+  ensureRawAgenda();
+  el.agendaTitleInput.value = state.rawAgenda.title || "";
+  state.agendaEditorSignature = "";
+  renderAgendaEditor();
+}
+
 function syncRawAgendaFromCardsForStructureChange() {
-  try {
-    const rebuilt = rebuildAgendaFromCards();
-    state.rawAgenda = rebuilt;
-    state.agendaEditorSignature = "";
-  } catch {
-    ensureRawAgenda();
-  }
+  const items = Array.from(el.agendaCards.querySelectorAll(".agenda-card")).map((card) => {
+    const item = {
+      topic: card.querySelector('[data-field="topic-name"]').value,
+      durationMinutes: Number(card.querySelector('[data-field="topic-duration"]').value) || 0
+    };
+    const subtopics = Array.from(card.querySelectorAll(".subtopic-row")).map((row) => ({
+      topic: row.querySelector('[data-field="subtopic-topic"]').value,
+      durationMinutes: Number(row.querySelector('[data-field="subtopic-duration"]').value) || 0
+    }));
+    if (subtopics.length) {
+      item.subtopics = subtopics;
+    }
+    return item;
+  });
+
+  state.rawAgenda = { title: el.agendaTitleInput.value, items };
+  state.agendaEditorSignature = "";
 }
 
 function setFocusMode(open) {
@@ -409,9 +527,10 @@ function buildSegments(agenda) {
   const segments = [];
 
   for (const item of agenda.items) {
-    validateItem(item, "agenda item");
+    const hasSubtopics = Array.isArray(item.subtopics) && item.subtopics.length > 0;
+    validateItem(item, "agenda item", !hasSubtopics);
 
-    if (Array.isArray(item.subtopics) && item.subtopics.length > 0) {
+    if (hasSubtopics) {
       for (const sub of item.subtopics) {
         validateItem(sub, `subtopic under ${item.topic}`);
         segments.push({
@@ -436,11 +555,11 @@ function buildSegments(agenda) {
   return segments;
 }
 
-function validateItem(item, label) {
+function validateItem(item, label, requireDuration = true) {
   if (!item || typeof item.topic !== "string" || item.topic.trim() === "") {
     throw new Error(`Invalid ${label}: topic is required.`);
   }
-  if (typeof item.durationMinutes !== "number" || item.durationMinutes <= 0) {
+  if (requireDuration && (typeof item.durationMinutes !== "number" || item.durationMinutes <= 0)) {
     throw new Error(`Invalid ${label}: durationMinutes must be a number > 0.`);
   }
 }
@@ -475,9 +594,65 @@ function startTicker() {
   state.intervalId = window.setInterval(tick, 250);
 }
 
+let toastTimeoutId = null;
+
 function setMessage(text, isError = false) {
-  el.inputMessage.textContent = text;
-  el.inputMessage.style.color = isError ? "#ff9ea9" : "#b5c7e4";
+  el.toast.textContent = text;
+  el.toast.classList.toggle("error", isError);
+  el.toast.classList.add("show");
+  window.clearTimeout(toastTimeoutId);
+  toastTimeoutId = window.setTimeout(() => el.toast.classList.remove("show"), isError ? 5000 : 3000);
+}
+
+function showView(name) {
+  state.view = name;
+  Object.entries(el.views).forEach(([key, node]) => toggleVisible(node, key === name));
+
+  const stepIdx = STEP_ORDER.indexOf(name);
+  toggleVisible(el.stepper, stepIdx !== -1);
+  el.stepper.querySelectorAll("li").forEach((li, idx) => {
+    li.classList.toggle("active", idx === stepIdx);
+    li.classList.toggle("done", idx < stepIdx);
+  });
+
+  if (name === "review") {
+    renderReview();
+  }
+  window.scrollTo({ top: 0, behavior: "smooth" });
+}
+
+function renderReview() {
+  const totalMs = state.segments.reduce((acc, seg) => acc + seg.durationMs, 0);
+  el.reviewTitle.textContent = (state.rawAgenda && state.rawAgenda.title) || "Untitled meeting";
+  el.reviewTotal.textContent = formatDurationLabel(totalMs);
+  el.reviewCount.textContent = String(state.segments.length);
+  el.reviewEnd.textContent = new Date(Date.now() + totalMs).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" });
+  el.reviewList.innerHTML = state.segments.map((seg, idx) => {
+    return `<li><span class="review-index">${idx + 1}</span><span class="review-path">${escapeHtml(seg.path)}</span><span class="review-time">${formatDurationLabel(seg.durationMs)}</span></li>`;
+  }).join("");
+}
+
+function setActiveTab(tab) {
+  const isVisual = tab === "visual";
+  toggleVisible(el.visualPane, isVisual);
+  toggleVisible(el.jsonPane, !isVisual);
+  el.tabVisualBtn.classList.toggle("active", isVisual);
+  el.tabJsonBtn.classList.toggle("active", !isVisual);
+  el.tabVisualBtn.setAttribute("aria-selected", String(isVisual));
+  el.tabJsonBtn.setAttribute("aria-selected", String(!isVisual));
+}
+
+function renderSessionBanner() {
+  const active = state.running;
+  toggleVisible(el.sessionBanner, active);
+  el.letsBeginBtn.textContent = active ? "Set up a new agenda" : "Let's begin \u2192";
+  if (!active) {
+    return;
+  }
+  const seg = currentSegment();
+  el.sessionBannerText.textContent = `${state.paused ? "Paused on" : "Now on"}: ${seg ? seg.path : ""}`;
+  toggleVisible(el.bannerPauseBtn, !state.paused);
+  toggleVisible(el.bannerResumeBtn, state.paused);
 }
 
 function setPanelPhase(phaseClass, label) {
@@ -514,22 +689,16 @@ function persistRuntimeState() {
   localStorage.setItem(STORAGE_KEYS.runtime, JSON.stringify(data));
 }
 
-function resetRuntimeState() {
+function endSession(askConfirm = true) {
+  if (askConfirm && !window.confirm("End this session? The timer will stop and progress will be lost.")) {
+    return false;
+  }
   clearTimer();
-  state.rawAgenda = { title: "Agenda Timer Session", items: [] };
-  state.segments = [];
-  state.index = 0;
-  state.sectionEndEpochMs = null;
-  state.running = false;
-  state.paused = false;
-  state.pausedRemainingMs = null;
-  state.finished = false;
-  state.segmentListSignature = "";
-  state.agendaEditorSignature = "";
+  resetRunState();
   setFocusMode(false);
-  localStorage.removeItem(STORAGE_KEYS.runtime);
+  persistRuntimeState();
   render();
-  renderAgendaEditor();
+  return true;
 }
 
 function currentSegment() {
@@ -592,21 +761,19 @@ function computePhase(seg, remainingMs) {
 function render() {
   const hasAgenda = state.segments.length > 0;
   const seg = currentSegment();
-  const canReopenFocus = hasAgenda;
 
-  el.startBtn.disabled = !hasAgenda || state.running;
-  el.pauseBtn.disabled = !(state.running && !state.paused);
-  el.resumeBtn.disabled = !(state.running && state.paused);
-  el.openFocusBtn.disabled = !canReopenFocus;
-  el.cornerOpenFocusBtn.disabled = !canReopenFocus;
-  el.resetBtn.disabled = !hasAgenda && !state.running && !state.finished;
-  el.focusStartBtn.disabled = !hasAgenda || state.running;
-  el.focusStopBtn.disabled = !(state.running && !state.paused);
-  el.focusResumeBtn.disabled = !(state.running && state.paused);
+  toggleVisible(el.focusStartBtn, hasAgenda && !state.running && !state.finished);
+  toggleVisible(el.focusPauseBtn, state.running && !state.paused);
+  toggleVisible(el.focusResumeBtn, state.running && state.paused);
+  toggleVisible(el.focusEndBtn, state.running);
+  toggleVisible(el.focusRestartBtn, state.finished);
+  toggleVisible(el.focusEditBtn, state.finished);
+  el.focusTitle.textContent = (state.rawAgenda && state.rawAgenda.title) || "Agenda Timer";
+  renderSessionBanner();
 
   if (!hasAgenda) {
     el.currentTopic.textContent = "No agenda loaded";
-    el.currentPath.textContent = "Load an agenda to begin.";
+    el.currentPath.textContent = "Build an agenda to begin.";
     el.timeRemaining.textContent = "00:00";
     el.progressText.textContent = "0%";
     el.progressFill.style.width = "0%";
@@ -616,21 +783,20 @@ function render() {
     setPagePhase(null, 0);
     setCornerTimer(false);
     renderSegmentList();
-    renderAgendaEditor();
     return;
   }
 
   if (state.finished) {
     el.currentTopic.textContent = "Agenda complete";
-    el.currentPath.textContent = "All topics finished.";
+    el.currentPath.textContent = "All topics finished. Nice work!";
     el.timeRemaining.textContent = "00:00";
     el.progressText.textContent = "100%";
     el.progressFill.style.width = "100%";
     el.progressFill.parentElement.setAttribute("aria-valuenow", "100");
-    el.nextUp.textContent = "Agenda Complete";
+    el.nextUp.textContent = "Nothing \u2014 you're done.";
     setPanelPhase("good", "Done");
-    setPagePhase("good", 0);
-    setCornerTimer(!state.focusMode, "00:00", "Agenda complete");
+    setPagePhase(state.focusMode ? "good" : null, 0);
+    setCornerTimer(false);
     renderSegmentList();
     return;
   }
@@ -662,43 +828,38 @@ function render() {
   const next = state.segments[state.index + 1];
   el.nextUp.textContent = next ? next.path : "End of agenda";
 
-  if (state.paused) {
-    setPanelPhase(phase.cls, "Paused");
-  } else {
-    setPanelPhase(phase.cls, phase.label);
+  if (!state.running) {
+    setPanelPhase(null, "Ready");
+    setPagePhase(null, 0);
+    setCornerTimer(false);
+    renderSegmentList();
+    return;
   }
+
+  setPanelPhase(phase.cls, state.paused ? "Paused" : phase.label);
   setPagePhase(phase.cls, usedRatio);
   setCornerTimer(!state.focusMode, formatMs(remainingMs), seg.path);
 
   renderSegmentList();
 }
 
-function loadAgendaFromInput() {
+function importJsonAgenda() {
   const jsonText = el.agendaInput.value.trim();
   if (!jsonText) {
-    setMessage("Paste agenda JSON first.", true);
-    return;
+    setMessage("Paste your agenda JSON first.", true);
+    return false;
   }
 
   try {
     const parsed = parseAgenda(jsonText);
-    state.rawAgenda = parsed.rawAgenda;
-    state.segments = parsed.segments;
-    state.index = 0;
-    state.sectionEndEpochMs = null;
-    state.running = false;
-    state.paused = false;
-    state.pausedRemainingMs = null;
-    state.finished = false;
-    state.segmentListSignature = "";
-    state.agendaEditorSignature = "";
+    loadAgendaIntoEditor(parsed.rawAgenda);
     persistAgendaText();
-    persistRuntimeState();
-    render();
-    renderAgendaEditor();
-    setMessage(`Agenda loaded with ${state.segments.length} segment(s).`);
+    setActiveTab("visual");
+    setMessage(`Imported ${parsed.rawAgenda.items.length} topic(s). Review them below.`);
+    return true;
   } catch (error) {
     setMessage(error.message, true);
+    return false;
   }
 }
 
@@ -785,24 +946,18 @@ function resumeTimer() {
 
 function restoreFromStorage() {
   loadPhaseThresholds();
-  el.agendaInput.value = localStorage.getItem(STORAGE_KEYS.agendaText) || JSON.stringify(SAMPLE_AGENDA, null, 2);
+  renderColorPreview();
   el.jsonHelp.textContent = JSON.stringify(SAMPLE_AGENDA, null, 2);
+  el.agendaInput.value = localStorage.getItem(STORAGE_KEYS.agendaText) || "";
 
-  const runtimeRaw = localStorage.getItem(STORAGE_KEYS.runtime);
-  if (!runtimeRaw) {
-    state.rawAgenda = SAMPLE_AGENDA;
-    state.agendaEditorSignature = "";
-    renderAgendaEditor();
-    render();
-    return;
+  let saved = null;
+  try {
+    saved = JSON.parse(localStorage.getItem(STORAGE_KEYS.runtime) || "null");
+  } catch {
+    localStorage.removeItem(STORAGE_KEYS.runtime);
   }
 
-  try {
-    const saved = JSON.parse(runtimeRaw);
-    if (!saved || !Array.isArray(saved.segments)) {
-      throw new Error("Invalid saved state.");
-    }
-
+  if (saved && Array.isArray(saved.segments) && saved.segments.length) {
     state.rawAgenda = saved.rawAgenda || null;
     state.segments = saved.segments;
     state.index = typeof saved.index === "number" ? saved.index : 0;
@@ -811,39 +966,123 @@ function restoreFromStorage() {
     state.paused = Boolean(saved.paused);
     state.pausedRemainingMs = typeof saved.pausedRemainingMs === "number" ? saved.pausedRemainingMs : null;
     state.finished = Boolean(saved.finished);
-    state.segmentListSignature = "";
-    state.agendaEditorSignature = "";
-    setFocusMode(Boolean(state.running || state.paused));
-
-    if (state.running && !state.paused && state.sectionEndEpochMs) {
-      startTicker();
-      tick();
+  } else {
+    try {
+      state.rawAgenda = JSON.parse(el.agendaInput.value);
+    } catch {
+      state.rawAgenda = null;
     }
-
-    render();
-    renderAgendaEditor();
-    setMessage("Restored saved timer state.");
-  } catch {
-    localStorage.removeItem(STORAGE_KEYS.runtime);
-    state.rawAgenda = SAMPLE_AGENDA;
-    state.agendaEditorSignature = "";
-    renderAgendaEditor();
-    render();
   }
+
+  loadAgendaIntoEditor(state.rawAgenda || { title: "", items: [] });
+  setFocusMode(state.running);
+  showView("welcome");
+
+  if (state.running && !state.paused && state.sectionEndEpochMs) {
+    startTicker();
+    tick();
+  }
+  render();
 }
 
 function closeFocusMode() {
   setFocusMode(false);
+  if (state.running) {
+    showView("welcome");
+  } else if (state.finished) {
+    showView("review");
+  }
   render();
 }
 
-el.loadAgendaBtn.addEventListener("click", loadAgendaFromInput);
-el.startBtn.addEventListener("click", startTimer);
-el.pauseBtn.addEventListener("click", pauseTimer);
-el.resumeBtn.addEventListener("click", resumeTimer);
+function openFocusMode() {
+  setFocusMode(true);
+  render();
+}
+
+function beginSetup() {
+  if (state.running && !endSession()) {
+    return;
+  }
+  showView("build");
+}
+
+function useSampleAgenda() {
+  if (state.running && !endSession()) {
+    return;
+  }
+  loadAgendaIntoEditor(SAMPLE_AGENDA);
+  setActiveTab("visual");
+  showView("build");
+  setMessage("Sample agenda loaded. Edit anything you like.");
+}
+
+function addTopicAndFocus() {
+  syncRawAgendaFromCardsForStructureChange();
+  ensureRawAgenda();
+  state.rawAgenda.items.push(blankTopic());
+  state.agendaEditorSignature = "";
+  renderAgendaEditor();
+  const inputs = el.agendaCards.querySelectorAll('[data-field="topic-name"]');
+  const last = inputs[inputs.length - 1];
+  if (last) {
+    last.focus();
+    last.select();
+  }
+}
+
+el.letsBeginBtn.addEventListener("click", beginSetup);
+el.sampleAgendaBtn.addEventListener("click", useSampleAgenda);
+el.bannerOpenTimerBtn.addEventListener("click", openFocusMode);
+el.bannerPauseBtn.addEventListener("click", pauseTimer);
+el.bannerResumeBtn.addEventListener("click", resumeTimer);
+el.bannerEndBtn.addEventListener("click", () => endSession());
+
+el.tabVisualBtn.addEventListener("click", () => setActiveTab("visual"));
+el.tabJsonBtn.addEventListener("click", () => {
+  try {
+    el.agendaInput.value = JSON.stringify(rebuildAgendaFromCards(), null, 2);
+  } catch {
+    // Cards are incomplete; leave whatever JSON is already there.
+  }
+  setActiveTab("json");
+});
+el.importJsonBtn.addEventListener("click", importJsonAgenda);
+
+el.buildBackBtn.addEventListener("click", () => showView("welcome"));
+el.buildNextBtn.addEventListener("click", () => {
+  if (!el.jsonPane.classList.contains("hidden") && !importJsonAgenda()) {
+    return;
+  }
+  if (commitAgendaFromCards()) {
+    showView("colors");
+  }
+});
+el.colorsBackBtn.addEventListener("click", () => showView("build"));
+el.colorsNextBtn.addEventListener("click", () => {
+  if (commitPhaseThresholds()) {
+    showView("review");
+  }
+});
+el.reviewBackBtn.addEventListener("click", () => showView("colors"));
+el.reviewStartBtn.addEventListener("click", startTimer);
+
+el.greenUntilInput.addEventListener("input", renderColorPreview);
+el.yellowUntilInput.addEventListener("input", renderColorPreview);
+
 el.focusStartBtn.addEventListener("click", startTimer);
-el.focusStopBtn.addEventListener("click", pauseTimer);
+el.focusPauseBtn.addEventListener("click", pauseTimer);
 el.focusResumeBtn.addEventListener("click", resumeTimer);
+el.focusRestartBtn.addEventListener("click", startTimer);
+el.focusEditBtn.addEventListener("click", () => {
+  endSession(false);
+  showView("build");
+});
+el.focusEndBtn.addEventListener("click", () => {
+  if (endSession()) {
+    showView("review");
+  }
+});
 
 function canScrubProgress() {
   return state.segments.length > 0 && !state.finished && (state.running || state.paused);
@@ -903,15 +1142,8 @@ el.progressTrack.addEventListener("pointerup", (event) => {
     el.progressTrack.releasePointerCapture(event.pointerId);
   }
 });
-el.addTopicBtn.addEventListener("click", () => {
-  syncRawAgendaFromCardsForStructureChange();
-  ensureRawAgenda();
-  state.rawAgenda.items.push(blankTopic());
-  state.agendaEditorSignature = "";
-  renderAgendaEditor();
-  setMessage("Added a new topic card. Apply edits when ready.");
-});
-el.applyCardEditsBtn.addEventListener("click", () => applyVisualEdits(true));
+el.addTopicBtn.addEventListener("click", addTopicAndFocus);
+el.agendaCards.addEventListener("input", updateAgendaTotals);
 el.agendaCards.addEventListener("click", (event) => {
   const target = event.target;
   if (!(target instanceof HTMLElement)) {
@@ -920,6 +1152,16 @@ el.agendaCards.addEventListener("click", (event) => {
 
   const action = target.getAttribute("data-action");
   if (!action) {
+    return;
+  }
+
+  if (action === "add-first-topic") {
+    addTopicAndFocus();
+    return;
+  }
+
+  if (action === "use-sample") {
+    useSampleAgenda();
     return;
   }
 
@@ -937,12 +1179,8 @@ el.agendaCards.addEventListener("click", (event) => {
 
   if (action === "remove-topic") {
     state.rawAgenda.items.splice(topicIdx, 1);
-    if (!state.rawAgenda.items.length) {
-      state.rawAgenda.items.push(blankTopic());
-    }
     state.agendaEditorSignature = "";
     renderAgendaEditor();
-    setMessage("Removed topic card. Apply edits when ready.");
     return;
   }
 
@@ -953,7 +1191,6 @@ el.agendaCards.addEventListener("click", (event) => {
     state.rawAgenda.items[topicIdx].subtopics.push(blankSubtopic());
     state.agendaEditorSignature = "";
     renderAgendaEditor();
-    setMessage("Added subtopic card. Apply edits when ready.");
     return;
   }
 
@@ -970,7 +1207,6 @@ el.agendaCards.addEventListener("click", (event) => {
     subtopics.splice(subIdx, 1);
     state.agendaEditorSignature = "";
     renderAgendaEditor();
-    setMessage("Removed subtopic card. Apply edits when ready.");
   }
 });
 el.segmentList.addEventListener("click", (event) => {
@@ -998,26 +1234,13 @@ el.segmentList.addEventListener("click", (event) => {
 
   startFromSection(idx);
 });
-el.openFocusBtn.addEventListener("click", () => {
-  setFocusMode(true);
-  render();
-});
-el.cornerOpenFocusBtn.addEventListener("click", () => {
-  setFocusMode(true);
-  render();
-});
+el.cornerOpenFocusBtn.addEventListener("click", openFocusMode);
 el.closeFocusBtn.addEventListener("click", closeFocusMode);
 document.addEventListener("keydown", (event) => {
   if (event.key === "Escape" && state.focusMode) {
     closeFocusMode();
   }
 });
-el.resetBtn.addEventListener("click", () => {
-  resetRuntimeState();
-  setMessage("Timer state reset.");
-});
 el.agendaInput.addEventListener("input", persistAgendaText);
-el.applyPhaseSettingsBtn.addEventListener("click", applyPhaseThresholdSettings);
 
 restoreFromStorage();
-renderAgendaEditor();

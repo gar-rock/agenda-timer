@@ -15,66 +15,161 @@
   <div class="bg-orb orb-b" aria-hidden="true"></div>
   <div class="bg-grid" aria-hidden="true"></div>
   <main class="container">
-    <header>
-      <h1>Agenda Timer</h1>
-      <p class="subtitle">Paste agenda JSON, start the clock, and stay on topic.</p>
+    <header class="app-header">
+      <div class="brand">
+        <img src="favicon.svg" alt="" class="brand-icon">
+        <div>
+          <h1>Agenda Timer</h1>
+          <p class="subtitle">Keep every meeting on schedule, one topic at a time.</p>
+        </div>
+      </div>
     </header>
 
-    <section class="panel input-panel">
-      <label for="agendaInput">Agenda JSON</label>
-      <textarea id="agendaInput" spellcheck="false"></textarea>
-      <div class="actions">
-        <button id="loadAgendaBtn" type="button">Load Agenda</button>
-        <button id="startBtn" type="button" disabled>Start</button>
-        <button id="pauseBtn" type="button" disabled>Pause</button>
-        <button id="resumeBtn" type="button" disabled>Resume</button>
-        <button id="openFocusBtn" class="ghost-btn" type="button" disabled>Open Focus View</button>
-        <button id="resetBtn" type="button" disabled>Reset</button>
+    <ol id="stepper" class="stepper hidden" aria-label="Setup progress">
+      <li><span class="step-num">1</span><span>Build agenda</span></li>
+      <li><span class="step-num">2</span><span>Timing colors</span></li>
+      <li><span class="step-num">3</span><span>Review &amp; start</span></li>
+    </ol>
+
+    <section id="welcomeView" class="view">
+      <div id="sessionBanner" class="panel session-banner hidden">
+        <div>
+          <p class="meta-label">Session in progress</p>
+          <p id="sessionBannerText" class="session-text"></p>
+        </div>
+        <div class="actions">
+          <button id="bannerOpenTimerBtn" type="button">Return to timer</button>
+          <button id="bannerPauseBtn" class="ghost-btn" type="button">Pause</button>
+          <button id="bannerResumeBtn" class="ghost-btn" type="button">Resume</button>
+          <button id="bannerEndBtn" class="ghost-btn danger-ghost" type="button">End session</button>
+        </div>
       </div>
 
-      <div class="phase-settings">
-        <p class="meta-label">Color Transition Settings</p>
+      <div class="panel hero">
+        <h2 class="hero-title">Run meetings that end on time.</h2>
+        <p class="hero-copy">Lay out your topics and how long each one gets. Agenda Timer walks the room through them, turning yellow and red as time runs short, then moves on automatically.</p>
+        <ol class="how-it-works">
+          <li><span class="step-num">1</span><div><strong>Build your agenda</strong><p>Add topics and optional subtopics with a time for each.</p></div></li>
+          <li><span class="step-num">2</span><div><strong>Pick warning colors</strong><p>Choose when the timer turns yellow, then red.</p></div></li>
+          <li><span class="step-num">3</span><div><strong>Start and stay focused</strong><p>A full-screen timer shows what to discuss now and what's next.</p></div></li>
+        </ol>
+        <div class="hero-actions">
+          <button id="letsBeginBtn" class="cta-btn" type="button">Let's begin &rarr;</button>
+          <button id="sampleAgendaBtn" class="ghost-btn" type="button">Try a sample agenda</button>
+        </div>
+      </div>
+    </section>
+
+    <section id="buildView" class="view hidden">
+      <div class="panel">
+        <div class="step-head">
+          <p class="meta-label">Step 1 of 3</p>
+          <h2 class="step-title">Build your agenda</h2>
+          <p class="step-copy">Name your meeting, then add the topics you want to cover. If a topic has subtopics, each subtopic gets its own timer.</p>
+        </div>
+
+        <div class="field-group title-field">
+          <label for="agendaTitleInput">Meeting name</label>
+          <input id="agendaTitleInput" type="text" placeholder="e.g. Weekly Product Sync">
+        </div>
+
+        <div class="tabs" role="tablist">
+          <button id="tabVisualBtn" class="tab active" type="button" role="tab" aria-selected="true">Build with cards</button>
+          <button id="tabJsonBtn" class="tab" type="button" role="tab" aria-selected="false">Import JSON</button>
+        </div>
+
+        <div id="visualPane">
+          <div id="agendaCards" class="agenda-cards"></div>
+          <div class="editor-foot">
+            <button id="addTopicBtn" class="ghost-btn" type="button">+ Add topic</button>
+            <p class="agenda-total">Total time: <strong id="agendaTotal">0s</strong></p>
+          </div>
+        </div>
+
+        <div id="jsonPane" class="hidden">
+          <p class="step-copy">Paste an agenda in JSON format and import it. You can fine-tune it with cards afterward.</p>
+          <textarea id="agendaInput" spellcheck="false" placeholder="Paste agenda JSON here"></textarea>
+          <div class="actions">
+            <button id="importJsonBtn" type="button">Import JSON</button>
+          </div>
+          <details class="json-help">
+            <summary>Show JSON format example</summary>
+            <pre id="jsonHelp"></pre>
+            <p class="note">Durations are in minutes. Decimals are allowed (1.5 = 1m 30s).</p>
+          </details>
+        </div>
+      </div>
+
+      <div class="wizard-nav">
+        <button id="buildBackBtn" class="ghost-btn" type="button">&larr; Back</button>
+        <button id="buildNextBtn" class="cta-btn" type="button">Next: Timing colors &rarr;</button>
+      </div>
+    </section>
+
+    <section id="colorsView" class="view hidden">
+      <div class="panel">
+        <div class="step-head">
+          <p class="meta-label">Step 2 of 3</p>
+          <h2 class="step-title">Choose your warning colors</h2>
+          <p class="step-copy">Each section's timer changes color as its time gets used up. Set when it should turn yellow and when it should turn red.</p>
+        </div>
+
+        <div class="color-preview" aria-hidden="true">
+          <div id="colorPreviewGreen" class="seg good">On track</div>
+          <div id="colorPreviewYellow" class="seg warn">Watch time</div>
+          <div id="colorPreviewRed" class="seg late">Wrap up</div>
+        </div>
+        <div class="color-scale"><span>Section starts</span><span>Time used &rarr;</span><span>Section ends</span></div>
+
         <div class="phase-settings-grid">
           <div class="field-group">
-            <label for="greenUntilInput">Green Until (%)</label>
+            <label for="greenUntilInput">Turn yellow at (% of time used)</label>
             <input id="greenUntilInput" type="number" min="1" max="98" step="1" value="75">
           </div>
           <div class="field-group">
-            <label for="yellowUntilInput">Yellow Until (%)</label>
+            <label for="yellowUntilInput">Turn red at (% of time used)</label>
             <input id="yellowUntilInput" type="number" min="2" max="99" step="1" value="95">
           </div>
-          <button id="applyPhaseSettingsBtn" class="ghost-btn" type="button">Apply Color Thresholds</button>
         </div>
-        <p class="focus-hint">Red starts after the yellow threshold and runs to 100%.</p>
+        <p id="colorSummary" class="focus-hint"></p>
       </div>
 
-      <p id="inputMessage" class="message"></p>
-    </section>
-
-    <section class="panel help-panel">
-      <h3>JSON Format</h3>
-      <pre id="jsonHelp"></pre>
-      <p class="note">Duration fields are in minutes.</p>
-    </section>
-
-    <section id="agendaEditor" class="panel agenda-editor hidden" aria-live="polite">
-      <div class="editor-head">
-        <h3>Visual Agenda Editor</h3>
-        <div class="editor-actions">
-          <button id="addTopicBtn" class="ghost-btn" type="button">Add Topic</button>
-          <button id="applyCardEditsBtn" type="button">Apply Card Edits To JSON</button>
-        </div>
+      <div class="wizard-nav">
+        <button id="colorsBackBtn" class="ghost-btn" type="button">&larr; Back</button>
+        <button id="colorsNextBtn" class="cta-btn" type="button">Next: Review &rarr;</button>
       </div>
-      <p class="timeline-subtitle">Edit topics and subtopics here, then apply changes to update your JSON and timer plan.</p>
-      <div id="agendaCards" class="agenda-cards"></div>
+    </section>
+
+    <section id="reviewView" class="view hidden">
+      <div class="panel">
+        <div class="step-head">
+          <p class="meta-label">Step 3 of 3</p>
+          <h2 class="step-title">Review and start</h2>
+          <p class="step-copy">Here's the plan. When you start, a full-screen timer opens and moves through each section automatically.</p>
+        </div>
+
+        <div class="review-stats">
+          <div class="stat"><span id="reviewTotal" class="stat-value">0s</span><span class="stat-label">Total time</span></div>
+          <div class="stat"><span id="reviewCount" class="stat-value">0</span><span class="stat-label">Timed sections</span></div>
+          <div class="stat"><span id="reviewEnd" class="stat-value">--:--</span><span class="stat-label">Ends at, if started now</span></div>
+        </div>
+
+        <h3 id="reviewTitle" class="review-title"></h3>
+        <ol id="reviewList" class="review-list"></ol>
+      </div>
+
+      <div class="wizard-nav">
+        <button id="reviewBackBtn" class="ghost-btn" type="button">&larr; Back</button>
+        <button id="reviewStartBtn" class="cta-btn" type="button">Start timer &#9654;</button>
+      </div>
     </section>
   </main>
 
   <section id="focusModal" class="focus-modal" aria-hidden="true">
     <div class="focus-shell">
       <div class="focus-header">
-        <p class="focus-kicker">Focus Mode</p>
-        <button id="closeFocusBtn" class="ghost-btn" type="button">Exit Focus View</button>
+        <p id="focusTitle" class="focus-kicker">Agenda Timer</p>
+        <button id="closeFocusBtn" class="ghost-btn" type="button">Minimize</button>
       </div>
 
       <div class="focus-grid">
@@ -95,9 +190,12 @@
           <p id="nextUp" class="next-up"></p>
 
           <div class="focus-controls">
-            <button id="focusStartBtn" type="button">Start</button>
-            <button id="focusStopBtn" class="ghost-btn" type="button">Stop</button>
-            <button id="focusResumeBtn" class="ghost-btn" type="button">Resume</button>
+            <button id="focusStartBtn" type="button">Start agenda</button>
+            <button id="focusPauseBtn" class="ghost-btn" type="button">Pause</button>
+            <button id="focusResumeBtn" type="button">Resume</button>
+            <button id="focusRestartBtn" type="button">Run again</button>
+            <button id="focusEditBtn" class="ghost-btn" type="button">Edit agenda</button>
+            <button id="focusEndBtn" class="ghost-btn danger-ghost" type="button">End session</button>
           </div>
         </section>
 
@@ -115,8 +213,10 @@
     <p class="corner-label">Live Timer</p>
     <p id="cornerTime" class="corner-time">00:00</p>
     <p id="cornerTopic" class="corner-topic">No section active</p>
-    <button id="cornerOpenFocusBtn" class="mini-focus-btn" type="button">Open Focus View</button>
+    <button id="cornerOpenFocusBtn" class="mini-focus-btn" type="button">Open full timer</button>
   </aside>
+
+  <div id="toast" class="toast" role="status" aria-live="polite"></div>
 
   <footer class="site-footer">
     <p>
